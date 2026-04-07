@@ -4,61 +4,276 @@
     <meta charset="UTF-8" />
     <title>AI-Ready Extraction</title>
     <style>
-      :root {
-        color-scheme: light dark;
-      }
-
       body {
-        margin: 12px;
+        margin: 0;
+        padding: 14px;
         font: 12px/1.4 Inter, system-ui, sans-serif;
+        color: #111827;
       }
 
-      h2 {
-        margin: 0 0 6px;
-        font-size: 14px;
+      h1 {
+        margin: 0 0 10px;
+        font-size: 15px;
       }
 
-      p {
-        margin: 0 0 12px;
-        opacity: 0.9;
+      .section {
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 10px;
+        margin-bottom: 10px;
       }
 
-      .buttons {
+      .section-title {
+        margin: 0 0 8px;
+        font-size: 12px;
+        font-weight: 600;
+      }
+
+      .stack {
         display: grid;
         gap: 8px;
       }
 
+      label {
+        display: block;
+      }
+
+      .row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .radio-label,
+      .checkbox-label {
+        display: flex;
+        gap: 8px;
+        align-items: flex-start;
+        border: 1px solid #e5e7eb;
+        border-radius: 6px;
+        padding: 8px;
+        cursor: pointer;
+      }
+
+      .radio-label input,
+      .checkbox-label input {
+        margin-top: 2px;
+      }
+
+      #pages-list {
+        margin-top: 8px;
+        max-height: 130px;
+        overflow: auto;
+        border: 1px solid #e5e7eb;
+        border-radius: 6px;
+        padding: 8px;
+      }
+
+      .page-option {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 6px;
+      }
+
+      .page-option:last-child {
+        margin-bottom: 0;
+      }
+
+      .actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 12px;
+      }
+
       button {
         border: 1px solid #d1d5db;
-        border-radius: 6px;
-        background: transparent;
-        padding: 8px 10px;
+        border-radius: 7px;
+        padding: 8px 12px;
         cursor: pointer;
-        text-align: left;
         font: inherit;
+      }
+
+      #run {
+        background: #111827;
+        color: white;
+        border-color: #111827;
+        flex: 1;
+      }
+
+      #cancel {
+        background: white;
+        color: #111827;
+      }
+
+      #error {
+        margin-top: 8px;
+        color: #b91c1c;
+        min-height: 16px;
+      }
+
+      .muted {
+        color: #6b7280;
       }
     </style>
   </head>
   <body>
-    <h2>Extract components plugin</h2>
+    <h1>Extract components</h1>
 
-    <div class="buttons">
-      <button id="full" type="button">Create page with components</button>
-      <button id="close" type="button">Cancel</button>
+    <section class="section">
+      <p class="section-title">Scope</p>
+      <div class="stack">
+        <label class="radio-label">
+          <input type="radio" name="scope" value="all-pages" checked />
+          <span>All pages</span>
+        </label>
+        <label class="radio-label">
+          <input type="radio" name="scope" value="selected-pages" />
+          <span id="selected-pages-label">Selected pages (0 pages selected)</span>
+        </label>
+        <label class="radio-label">
+          <input type="radio" name="scope" value="current-selection" />
+          <span>Current selection in page</span>
+        </label>
+      </div>
+
+      <div id="pages-list" hidden></div>
+      <p class="muted" id="selection-note" hidden>
+        Uses only the selected layers/components on the current page.
+      </p>
+    </section>
+
+    <section class="section">
+      <p class="section-title">Node types to extract</p>
+      <div class="stack">
+        <label class="checkbox-label">
+          <input id="include-originals" type="checkbox" checked />
+          <span>Original components (COMPONENT, COMPONENT_SET)</span>
+        </label>
+        <label class="checkbox-label">
+          <input id="include-instances" type="checkbox" />
+          <span>Instances (INSTANCE)</span>
+        </label>
+      </div>
+    </section>
+
+    <div class="actions">
+      <button id="run" type="button">Extract</button>
+      <button id="cancel" type="button">Cancel</button>
     </div>
+    <div id="error"></div>
 
     <script>
-      const fullBtn = document.getElementById('full');
-      const closeBtn = document.getElementById('close');
+      const runBtn = document.getElementById('run');
+      const cancelBtn = document.getElementById('cancel');
+      const selectedPagesLabel = document.getElementById('selected-pages-label');
+      const pagesList = document.getElementById('pages-list');
+      const selectionNote = document.getElementById('selection-note');
+      const includeOriginals = document.getElementById('include-originals');
+      const includeInstances = document.getElementById('include-instances');
+      const errorEl = document.getElementById('error');
 
-      fullBtn.onclick = () => {
-        parent.postMessage({ pluginMessage: { type: 'run-extraction', mode: 'full' } }, '*');
-        
+      let pages = [];
+
+      function getScope() {
+        const checked = document.querySelector('input[name="scope"]:checked');
+        return checked ? checked.value : 'all-pages';
+      }
+
+      function updateSelectedPagesLabel() {
+        const count = pagesList.querySelectorAll('input[type="checkbox"]:checked').length;
+
+        if (count === 1) {
+          selectedPagesLabel.textContent = 'Selected pages (solo hay una pagina seleccionada)';
+          return;
+        }
+
+        selectedPagesLabel.textContent = `Selected pages (${count} paginas seleccionadas)`;
+      }
+
+      function renderPages() {
+        pagesList.innerHTML = '';
+
+        pagesList.innerHTML += 'no se podía directamente seleccionando desde el panel d figma 😔'
+
+        for (const page of pages) {
+          const row = document.createElement('label');
+          row.className = 'page-option';
+
+          const check = document.createElement('input');
+          check.type = 'checkbox';
+          check.value = page.id;
+          check.checked = !!page.isCurrent;
+          check.addEventListener('change', updateSelectedPagesLabel);
+
+          const text = document.createElement('span');
+          text.textContent = page.isCurrent ? `${page.name} (current)` : page.name;
+
+          row.appendChild(check);
+          row.appendChild(text);
+          pagesList.appendChild(row);
+        }
+
+        updateSelectedPagesLabel();
+      }
+
+      function updateScopeUi() {
+        const scope = getScope();
+        pagesList.hidden = scope !== 'selected-pages';
+        selectionNote.hidden = scope !== 'current-selection';
+      }
+
+      function getSelectedPageIds() {
+        return Array.from(pagesList.querySelectorAll('input[type="checkbox"]:checked')).map((el) => el.value);
+      }
+
+      window.onmessage = (event) => {
+        const msg = event.data.pluginMessage;
+        if (!msg || msg.type !== 'init') {
+          return;
+        }
+
+        pages = msg.pages || [];
+        renderPages();
+        updateScopeUi();
       };
 
-    
+      document.querySelectorAll('input[name="scope"]').forEach((radio) => {
+        radio.addEventListener('change', updateScopeUi);
+      });
 
-      closeBtn.onclick = () => {
+      runBtn.onclick = () => {
+        errorEl.textContent = '';
+
+        const includeOriginalsValue = includeOriginals.checked;
+        const includeInstancesValue = includeInstances.checked;
+        if (!includeOriginalsValue && !includeInstancesValue) {
+          errorEl.textContent = 'Choose at least one node type to extract.';
+          return;
+        }
+
+        const scope = getScope();
+        const selectedPageIds = getSelectedPageIds();
+        if (scope === 'selected-pages' && selectedPageIds.length === 0) {
+          errorEl.textContent = 'Select at least one page.';
+          return;
+        }
+
+        parent.postMessage(
+          {
+            pluginMessage: {
+              type: 'run-extraction',
+              scope,
+              includeOriginals: includeOriginalsValue,
+              includeInstances: includeInstancesValue,
+              selectedPageIds,
+            },
+          },
+          '*'
+        );
+      };
+
+      cancelBtn.onclick = () => {
         parent.postMessage({ pluginMessage: { type: 'close' } }, '*');
       };
     </script>
