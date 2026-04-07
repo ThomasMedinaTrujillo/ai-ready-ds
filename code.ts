@@ -1,6 +1,9 @@
 
 type KeepNode = ComponentNode | ComponentSetNode | InstanceNode;
 
+figma.showUI(__html__);
+figma.ui.resize(300,200)
+
 
 const GRID_GAP = 120;
 
@@ -131,9 +134,16 @@ async function runExtraction() {
   figma.closePlugin(`Created ${targetPage.name} with ${clonedNodes.length} nodes (compact sets).`);
 }
 
-runExtraction().catch((error: unknown) => {
-  const message = error instanceof Error ? error.message : String(error);
-  figma.closePlugin(`Extraction failed: ${message}`);
-  console.log(`${message}`);
-  
-});
+
+
+figma.ui.onmessage = (msg) => {
+  if (msg.type === 'run-extraction') {
+    runExtraction().catch((error: unknown) => {
+      const message = error instanceof Error ? error.message : String(error);
+      figma.closePlugin(`Extraction failed: ${message}`);
+      console.log(`${message}`);
+    });
+  } else if (msg.type === 'close') {
+    figma.closePlugin();
+  }
+};

@@ -40,27 +40,23 @@
     </style>
   </head>
   <body>
-    <h2>Create AI-Ready Page</h2>
-    <p>Choose how variants should be exported from your current selection.</p>
+    <h2>Extract components plugin</h2>
 
     <div class="buttons">
-      <button id="full" type="button">Full variants (separate each variant)</button>
-      <button id="compact" type="button">Compact sets (one component set node)</button>
+      <button id="full" type="button">Create page with components</button>
       <button id="close" type="button">Cancel</button>
     </div>
 
     <script>
       const fullBtn = document.getElementById('full');
-      const compactBtn = document.getElementById('compact');
       const closeBtn = document.getElementById('close');
 
       fullBtn.onclick = () => {
         parent.postMessage({ pluginMessage: { type: 'run-extraction', mode: 'full' } }, '*');
+        
       };
 
-      compactBtn.onclick = () => {
-        parent.postMessage({ pluginMessage: { type: 'run-extraction', mode: 'compact' } }, '*');
-      };
+    
 
       closeBtn.onclick = () => {
         parent.postMessage({ pluginMessage: { type: 'close' } }, '*');
