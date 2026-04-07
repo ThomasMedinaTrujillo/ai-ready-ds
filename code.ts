@@ -10,8 +10,7 @@ const MAX_ROW_WIDTH = 4800;
 function isKeepNode(node: SceneNode): node is KeepNode {
   return (
     node.type === 'COMPONENT' ||
-    node.type === 'COMPONENT_SET' ||
-    node.type === 'INSTANCE'
+    node.type === 'COMPONENT_SET' 
   );
 }
 
@@ -76,23 +75,24 @@ function getNodeSize(node: KeepNode): { width: number; height: number } {
 
 
 async function runExtraction() {
-  const selection = figma.currentPage.selection;
-
-  if (selection.length === 0) {
-    figma.closePlugin('Select at least one area of your design system first.');
-    return;
-  }
+  // Load all pages first
+  await figma.loadAllPagesAsync();
 
   const collected = new Map<string, KeepNode>();
 
-  for (const selectedNode of selection) {
-    collectKeepNodes(selectedNode, collected);
+  // Collect components from all pages
+  for (const page of figma.root.children) {
+    if (page.type === 'PAGE') {
+      for (const node of page.children) {
+        collectKeepNodes(node, collected);
+      }
+    }
   }
 
   const filtered = getCompactNodes(Array.from(collected.values()));
 
   if (filtered.length === 0) {
-    figma.closePlugin('No components, component sets, or instances were found in the selection.');
+    figma.closePlugin('No components, component sets, or instances were found in the file.');
     return;
   }
 
@@ -134,4 +134,6 @@ async function runExtraction() {
 runExtraction().catch((error: unknown) => {
   const message = error instanceof Error ? error.message : String(error);
   figma.closePlugin(`Extraction failed: ${message}`);
+  console.log(`${message}`);
+  
 });
