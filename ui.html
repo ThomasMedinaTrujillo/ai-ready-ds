@@ -184,11 +184,11 @@
         const count = pagesList.querySelectorAll('input[type="checkbox"]:checked').length;
 
         if (count === 1) {
-          selectedPagesLabel.textContent = 'Selected pages (solo hay una pagina seleccionada)';
+          selectedPagesLabel.textContent = 'Selected pages (only 1 page selected)';
           return;
         }
 
-        selectedPagesLabel.textContent = `Selected pages (${count} paginas seleccionadas)`;
+        selectedPagesLabel.textContent = `Selected pages (${count} pages selected)`;
       }
 
       function renderPages() {
